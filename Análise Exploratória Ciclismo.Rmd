@@ -1,0 +1,422 @@
+---
+title: "Análise Exploratória - Ciclismo de Rua"
+author: "Marcela Ruela"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+**1. INSTALAÇÃO E CARREGAMENTO DE PACOTES NECESSÁRIOS**
+
+```{r, message=FALSE, warning=FALSE}
+
+pacotes <- c("plotly","tidyverse","ggrepel","fastDummies","knitr","kableExtra",
+             "splines","reshape2","PerformanceAnalytics","metan","correlation",
+             "see","ggraph","nortest","rgl","car","olsrr","jtools","ggstance",
+             "magick","cowplot","beepr","Rcpp","readxl", "cluster", "fpc","factoextra",
+             "ggpubr",'lubridate','lpSolve', 'caret', "patchwork", "zoo")
+
+if(sum(as.numeric(!pacotes %in% installed.packages())) != 0){
+  instalador <- pacotes[!pacotes %in% installed.packages()]
+  for(i in 1:length(instalador)) {
+    install.packages(instalador, dependencies = T)
+    break()}
+  sapply(pacotes, require, character = T) 
+} else {
+  sapply(pacotes, require, character = T) 
+}
+```
+
+**2. DATA WRAGLING**
+
+* 2.1 Carregamento dos dados
+
+1. Período FTP = 156W
+
+```{r, message=FALSE, warning=FALSE}
+
+dados1 <- read_excel('Atividades.xlsx', sheet = 'Planilha1')
+
+# Visualização do dataset e formato das variáveis 
+dados1 %>% head()
+
+# Resumo das estatísticas descritivas
+summary(dados1)
+
+# Renomear a coluna tempo para tempo_pedal para igualar às outras planilhas
+dados1 <- rename(dados1, "tempo_pedal" = "tempo")
+head(dados1) #OK!
+
+```
+
+2. Período FTP = 165W
+
+```{r, message=FALSE, warning=FALSE}
+
+dados2 <- read_excel('Activities_nova.xlsx')
+
+# Visualização do dataset e formato das variáveis
+dados2 %>% head()
+
+# Remover última coluna do dataset
+dados2 <- dados2[1:10]
+
+# Resumo estatísticas descritivas
+summary(dados2)
+
+```
+
+3. Período FTP = 171W
+
+```{r, message=FALSE, warning=FALSE}
+
+dados3 <- read_excel('Banco de Dados_Bike.xlsx', sheet = 'Folha 1')
+dados3 %>% head()
+
+# Remover última coluna para igualar número de colunas de todos datasets
+
+dados3 <- dados3[1:10]
+
+# Tempos e datas como caractére. Necessária transformação para POSIXct
+dados3$Data <- as.POSIXct(dados3$Data, format = "%Y-%m-%d %H:%M:%S")
+dados3$tempo_pedal <- as.POSIXct(dados3$tempo_pedal, format = "%H:%M:%S")
+
+dados3 %>% head() #OK!
+
+# Visualizando as estatísticas descritivas
+summary(dados3)
+
+# Ressalva: poucas observações
+
+```
+
+4. Período 182W: mesmo passo a passo do que item 3 (mesmos formatos de variáveis)
+
+```{r, message=FALSE, warning=FALSE}
+
+dados4 <- read_excel('Banco de Dados_Bike.xlsx', sheet = 'Folha 2')
+dados4 %>% head()
+
+# Remover última coluna para igualar número de colunas de todos datasets
+
+dados4 <- dados4[1:10]
+
+# Tempos e datas como caractére. Necessária transformação para POSIXct
+dados4$Data <- as.POSIXct(dados4$Data, format = "%Y-%m-%d %H:%M:%S")
+dados4$tempo_pedal <- as.POSIXct(dados4$tempo_pedal, format = "%H:%M:%S")
+
+dados4 %>% head() #OK!
+
+# Visualizando as estatísticas descritivas
+summary(dados4)
+
+# Ressalva: poucas observações
+
+```
+
+5. Período 173W: mesmo passo a passo do que item 3 (mesmos formatos de variáveis)
+
+```{r, message=FALSE, warning=FALSE}
+
+dados5 <- read_excel('Banco de Dados_Bike.xlsx', sheet = 'Folha 3')
+dados5 %>% head()
+
+# Remover última coluna para igualar número de colunas de todos datasets
+
+dados5 <- dados5[1:10]
+
+# Tempos e datas como caractére. Necessária transformação para POSIXct
+dados5$Data <- as.POSIXct(dados5$Data, format = "%Y-%m-%d %H:%M:%S")
+dados5$tempo_pedal <- as.POSIXct(dados5$tempo_pedal, format = "%H:%M:%S")
+
+dados5 %>% head() #OK!
+
+# Visualizando as estatísticas descritivas
+summary(dados5)
+
+# Ressalva: poucas observações
+
+```
+
+6. Período 186W: mesmo passo a passo do que item 3 (mesmos formatos de variáveis)
+
+```{r, message=FALSE, warning=FALSE}
+
+dados6 <- read_excel('Banco de Dados_Bike.xlsx', sheet = 'Folha 4')
+dados6 %>% head()
+
+# Remover última coluna para igualar número de colunas de todos datasets
+dados6 <- dados6[1:10]
+
+# Tempos e datas como caractére. Necessária transformação para POSIXct
+dados6$Data <- as.POSIXct(dados6$Data, format = "%Y-%m-%d %H:%M:%S")
+dados6$tempo_pedal <- as.POSIXct(dados6$tempo_pedal, format = "%H:%M:%S")
+
+dados6 %>% head() #OK!
+
+# Visualizando as estatísticas descritivas
+summary(dados6)
+
+# Ressalva: poucas observações
+
+```
+
+7. Criação de um único dataframe identificando cada periodo de FTP
+
+```{r, message=FALSE, warning=FALSE}
+
+# Adicionando uma coluna de identificação
+dados1$periodo <- "FTP = 156W"
+dados2$periodo <- "FTP = 165W" 
+dados3$periodo <- "FTP = 171W"
+dados4$periodo <- "FTP = 182W"
+dados5$periodo <- "FTP = 173W"
+dados6$periodo <- "FTP = 186W"
+
+# Juntar todos os data.frames
+dados_todos <- bind_rows(dados1, dados2, dados3, dados4, dados5, dados6)
+dados_todos %>% head()
+
+#OK! 179 Observações no total
+
+# Visualizando as estatíticas descritivas
+summary(dados_todos)
+
+```
+
+**2. EXPLORAÇÃO DOS DADOS**
+
+Vamos iniciar a exploração dos dados entendendo melhor a correlação deles entre si.
+Como o periodo é um caractere, vamos retirá-lo da análise e explorar primenro essas relações do banco de dados como um todo. Além disso, será necessário remover as datas dessa análise.
+
+```{r, message=FALSE, warning=FALSE}
+
+# Construção de um heatmap
+
+rho1 <- cor(cbind(dados_todos[2:3],dados_todos[5:10]))
+
+rho1 %>% 
+  melt() %>% 
+  ggplot() +
+  geom_tile(aes(x = Var1, y = Var2, fill = value)) +
+  geom_text(aes(x = Var1, y = Var2, label = round(x = value, digits = 3)),
+            size = 4) +
+  labs(x = NULL,
+       y = NULL,
+       fill = "Correlações") +
+  scale_fill_gradient2(low = "dodgerblue4", 
+                       mid = "white", 
+                       high = "brown4",
+                       midpoint = 0) +
+  theme(panel.background = element_rect("white"),
+        panel.grid = element_line("grey95"),
+        panel.border = element_rect(NA),
+        legend.position = "bottom",
+        axis.text.x = element_text(angle = 0))
+
+```
+
+Para visualizar os pares de variáveis mais significativas, vamos ordenar em um ranking, elencando das correlações mais fortes para as mais fracas.
+
+```{r, message=FALSE, warning=FALSE}
+# Transformando em formato longo com melt()
+df_corr <- melt(rho1)
+
+# Removendo a diagonal e ordenar pares únicos com valores absolutos
+ranking_corr <- df_corr %>%
+  filter(as.character(Var1) != as.character(Var2)) %>%
+  mutate(
+    Var1 = as.character(Var1),
+    Var2 = as.character(Var2),
+    abs_value = abs(value)
+  ) %>%
+  group_by(pair = paste(pmin(Var1, Var2), pmax(Var1, Var2), sep = " ~ ")) %>%
+  summarise(
+    correlacao = first(value),
+    abs_cor = first(abs_value),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(abs_cor))
+
+# Visualizando em gráfico de barras
+
+ggplot(ranking_corr, aes(x = reorder(pair, abs_cor), y = abs_cor, fill = correlacao > 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Ranking das Correlações (Valor absoluto)",
+    x = "Par de Variáveis",
+    y = "Correlação (Valor absoluto)"
+  ) +
+  scale_fill_manual(values = c("TRUE" = "#2E8B57", "FALSE" = "#B22222")) +  # Verde para positiva, vermelho para negativa
+  theme_minimal(base_size = 13)
+
+```
+
+Algumas observações pertinentes:
+
+- Quanto maior a distância percorrida, mais calorias são gastas, sendo que a elevação do percurso também influencia no gasto calórico.
+
+- Um treino de maior intensidade, com maior aerobic training effect, resulta em maior gastos calóricos e, parte desses treinos, aparentemente são em maiores distâncias, maior frequência cardíaca média, mas nem sempre são treinos de maiore elevação.
+
+- A elevação não tem correlação com a frequência cardíaca média, provavelmente devido à descida na sequência, em que não há esforço relevante. Porém, há uma pequena correlação com a frequência cardíaca máxima, uma vez que subidas demandam maior capacidade aeróbica.
+
+- As únicas variáveis que sao inversamente proporcionais de forma mais evidente é elevação e velocidade média, uma vez que quando há mais subidas a velocidade tende a ser reduzida.
+
+Conclusões:
+
+- Para queimar mais calorias, a distância percorrida deve ser maior. Porém, treinos mais intensos e/ou de subidas, possuem uma correlação significativa com gasto calórico, reforçando o conceito de High Intensity Interval Training (HIIT), amplamente difundido em treinos em geral.
+
+- O training effect aerobic é maior em maiores distâncias, ainda que a correlação entre distância e frequência cardíaca média seja baixa. Provavelmente, isso ocorre devido treinos longos serem focados em Zona 2, com frequência cardíaca mais baixa e constante para sustentar longos períodos de tempo. Ainda sim, esses treinos são mais exaustivos devido às distâncias e tempo pedalando.
+
+- A correlação significativa entre training effect aerobic e frequência cardíaca média ocorre provavelmente devido à treinos mais curtos e intensos, indicando que há ganho aeróbico nesse tipo de exercício.
+
+Vamos explorar essas conclusões de forma visual
+
+```{r, message=FALSE, warning=FALSE}
+
+ggplot(dados_todos, aes(x = distancia, y = calorias, color = elevacao, size = training_effect_aerobic)) +
+  geom_point(alpha = 0.7) +
+  scale_color_gradient(low = "skyblue", high = "darkred") +
+  labs(
+    title = "Gasto calórico em função da distância e intensidade",
+    x = "Distância (km)", y = "Calorias",
+    color = "Elevação", size = "Training Effect"
+  ) +
+  theme_minimal(base_size = 13)
+
+```
+
+Por esse gráfico, podemos perceber treinos de igual intensidade no canto esquerdo inferior, porém, com mesma distância e maior subida, o gasto calórico é maior. Da mesma forma, treinos de igual intensidade na faixa de 100km possuem gastos calóricos maior com maior elevação e ligeira menor distância do que treinos mais planos.
+
+**Como será que essa sensacao de esforco muda com o aumento do FTP?**
+
+Para ter uma melhoria ideia, vamos criar indicadores para eficiência energética.
+
+- calorias/km: calorias é uma medida de trabalho realizado. quanto menos calorias eu gasto por km rodado, mais eficiente está a pedalada, ou seja, vou mais longe com menor esforço. Como a subida também infleuncia nessa distância, o ganho de elevação será transformado em km equivalente. Segundo a bibliografica, a cada 100mm de subida equivale à 1km plano, ao comparar os esforços.
+- calorias/min: indica uma intensidade relativa do esforço (potência)
+- training effect aerobic/min: densidade de estímulo do treino
+
+Primeiro, vamos transformar o tempo de pedal em minutos.
+
+```{r, message=FALSE, warning=FALSE}
+
+x <- unclass(dados_todos['tempo_pedal'])
+df1 <- data.frame(x)
+
+df1$hour_component <- as.numeric(format(df1$tempo_pedal,'%H'))
+df1$min_component <- as.numeric(format(df1$tempo_pedal,'%M'))
+df1$sec_component <- as.numeric(format(df1$tempo_pedal,'%S'))
+
+df1$minutos <- df1$hour_component*60 + df1$min_component + df1$sec_component/60
+
+dados_todos <- cbind(dados_todos,df1$minutos)
+dados_todos <- rename(dados_todos, 'tempo_min' = 'df1$minutos')
+
+```
+
+Vamos calcular os novos indicadores
+
+```{r, message=FALSE, warning=FALSE}
+
+# Calorias/km equivalente
+dados_todos$cal_km_eq <- dados_todos$calorias / (dados_todos$distancia +
+                                                   dados_todos$elevacao/100)
+
+#Calorias/km
+dados_todos$cal_km <- dados_todos$calorias / dados_todos$distancia
+
+#Calorias/min
+dados_todos$cal_min <- dados_todos$calorias / dados_todos$tempo_min
+
+#Training Effect Aerobic/min
+dados_todos$te_min <- dados_todos$training_effect_aerobic /
+   dados_todos$tempo_min
+
+# Elevação / km
+dados_todos$eleva_km <- dados_todos$elevacao / (dados_todos$distancia*1000)
+
+```
+
+Agora vamos verificar como as cal/km equivalente se comportam ao longo do tempo
+
+```{r, message=FALSE, warning=FALSE}
+
+g1 <- ggplot(dados_todos, aes(x = Data, y = cal_km_eq, color = as.factor(periodo))) +
+  geom_point(size = 2) +
+  geom_smooth(method = 'lm', se = FALSE, color = "darkred", linetype = "dashed", size = 1) +
+  labs(title = "Calorias/km equivalente ao Longo do Tempo",
+       x = "Data", y = "Calorias (cal/km eq)", color = "FTP") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+g1
+
+```
+
+Há um aumento em calorias / km equivalente a medida que o FTP aumenta, sendo que essa diferença é mais significativa aparentemente entre FTPs de 156 e 165W e 171 a 186W.
+
+Isso sugere que o trabalho necessario para andar os mesmos km é superior quando há um aumento de FTP. Para verificar essa questao, vamos ver como o esforco relativo cal/min se comporta ao longo do tempo.
+
+```{r, message=FALSE, warning=FALSE}
+
+g2 <- ggplot(dados_todos, aes(x = Data, y = cal_min, color = as.factor(periodo))) +
+  geom_point(size = 2) +
+  geom_smooth(method = 'lm', se = FALSE, color = "darkred", linetype = "dashed", size = 1) +
+  labs(title = "Calorias/min ao Longo do Tempo",
+       x = "Data", y = "Calorias (cal/min)", color = "FTP") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+g2
+
+```
+
+Observa-se que há uma redução brusca no esforço relativo, mantendo, aparentemente, segregação dos grupos na análise anterior: FTP de 156 a 165W e FTP de 171 a 186W. 
+
+Esse resultado é curioso, visto que, em teoria, o esforço por km aumentou. Uma hipótese é que a análise de calorias/km equivalente não é adequada, provavelmente devido às subidas. Vamos visualizar melhor a elevação e distância separadamente ao longo do tempo.
+
+```{r, message=FALSE, warning=FALSE}
+
+ggplot(dados_todos, aes(x = Data, y = elevacao, color = periodo, size = distancia)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = 'lm', se = FALSE, color = "darkred", linetype = "dashed", size = 1) +
+  labs(
+    title = "Distância e Elevação ao longo do tempo para cada período de FTP",
+    x = "Data", y = "Ganho de Elevação (m)",
+    color = "Período FTP", size = "Distância"
+  ) +
+  theme_minimal(base_size = 13)
+
+```
+
+Realmente há uma tendência dos treinos possuírem maior elevação e distância ligeiramente menor com o passar do tempo. Essa observação faz sentido, uma vez que me mudei de Santos para JF e BH, locais com mais montanhas. Em Santos, os pedais de subida eram realizados normalmentes em morros dentro da cidade, com alto ganho de elevação e baixa quilometragem. Há alguns outliers devido momentos em que morava em Santos e pedalei em MG e pedais extremamente longos, com elevação maiores.
+
+Com isso, conclui-se que não é possível avaliar a eficiência do pedal com o indicador calorias / km equivalente sozinho. Há diversos fatores que podem tornar uma subida com esforço variado, como o percentual de inclinação, a velocidade e condições climáticas (vento e temperatura, por exemplo). A conversão assumida de que cada 100m de subida equivale a 1km no plano não é válida.
+
+Vamos visualizar como a inclinação média se alterou ao longo do tempo para entender se realmente o esforço pode ter variado devido relevo do terreno.
+
+```{r, message=FALSE, warning=FALSE}
+
+ggplot(dados_todos, aes(x = Data, y = eleva_km, color = as.factor(periodo))) +
+  geom_point(size = 2) +
+  geom_smooth(method = 'lm', se = FALSE, color = "darkred", linetype = "dashed", size = 1) +
+  labs(title = "Inclinação ao Longo do Tempo",
+       x = "Data", y = "Inclinação Média", color = "FTP") +
+  theme_minimal()
+
+```
+
+É possível confirmar a hipótese do aumento da inclinação média, ou seja, presença de subidas. 
+
+Como o esforço relativo (cal/min) reduziu e a geração de trabalho (calorias/km eq) foi maior, podemos concluir que houve um aumento de performance com o tempo, comprovado pelos testes físicos de FTP que indicam os períodos dos treinos. Os dois gráficos mostram que há uma maior geração de potência com menor esforço relativo.
+
+Visualizando os dois gráficos em uma página.
+
+```{r, message=FALSE, warning=FALSE}
+
+(g1 + g2) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+
+```
+
+
+
